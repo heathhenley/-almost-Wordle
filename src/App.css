@@ -42,6 +42,13 @@ input {
   padding: 30px;
 }
 
+.resetButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px;
+}
+
 button {
   font-size: xx-large;
   width: 100%;
