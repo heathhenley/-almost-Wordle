@@ -103,8 +103,10 @@ function App() {
       newWords[row].map((l, i) => {
         const currentInput = inputRef.current[toFlatIndex(row, i)]
         if (l === correctWord[i]) {
+          // correct letter in the correct spot
           currentInput?.classList.add('correct')
         } else if ( correctWord.includes(l)) {
+          // letter is in the word but in the wrong spot
           currentInput?.classList.add('almost')
         }
       })

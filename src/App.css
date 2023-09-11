@@ -10,13 +10,15 @@ body {
 .board {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 1em;
+  padding-left: 5em;
+  padding-right: 5em;
 }
 
 .row {
   display: flex;
   flex-direction: row;
-  gap: 10px;
+  gap: 1em;
 }
 
 input {
@@ -45,8 +47,8 @@ input {
 .resetButton {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 30px;
+  justify-content: center;
+  padding: 2em 5em 0 5em;
 }
 
 button {
