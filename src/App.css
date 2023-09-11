@@ -55,3 +55,19 @@ button {
   font-size: xx-large;
   width: 100%;
  }
+
+@media (max-width: 600px) {
+  .board {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .resetButton {
+    padding: 1em;
+  }
+  input {
+    width: 30px;
+    height: 30px;
+    font-size: large;
+    text-align: center;
+  }
+}
