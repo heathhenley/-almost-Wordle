@@ -72,10 +72,9 @@ function App() {
     setCorrectWord(selectRandomWord(data.map((w) => w.word)))
   }
 
-  // TODO: Could/should we use react query here?
-  useEffect(() => {
-    getWordList()
-  }, [])
+  // TODO: Could/should use react query here? Also not adding any
+  // cleanup function because it's only running on component mount
+  useEffect(() => {getWordList()}, [])
 
   const earlyReturnEditInvalidInput = (inputIdx: number): boolean => {
     // This is to stop user from editing inputs for already guessed words
