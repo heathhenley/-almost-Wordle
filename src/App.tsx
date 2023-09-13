@@ -24,6 +24,10 @@ enum TGameState {
   IN_PROGRESS
 }
 
+enum TAlert {
+  WORD_NOT_IN_LIST,
+}
+
 interface TAPIWord {
   word: string
   id: number
@@ -54,6 +58,7 @@ function App() {
   const [listOfWords, setListOfWords] = useState<string[]>([])
   const [correctWord, setCorrectWord] = useState("")
   const [gameOver, setGameOver] = useState<TGameState>(TGameState.IN_PROGRESS)
+  const [alert, setAlert] = useState<TAlert | null>(null)
   const inputRef = useRef<Array<HTMLInputElement | null>>([])
 
   const firstAvailableIndex = guessGrid.flat().findIndex((l) => l === '')
@@ -108,10 +113,16 @@ function App() {
     const completeWordEntered: boolean = col === WORD_LENGTH - 1
     const enteredWordIsCorrect: boolean = guessGrid[row].join('') === correctWord
     const allGuessesUsed: boolean = flatIdx === WORDS * WORD_LENGTH - 1
+    const wordInWordList: boolean = listOfWords.includes(
+      guessGrid[row].join(''))
     // We need to check for game stuff here
     // - Check if the word is complete and add classes to color if it is
     console.log(correctWord)
     if (completeWordEntered) {
+      if (!wordInWordList) {
+        setAlert(TAlert.WORD_NOT_IN_LIST)
+        return
+      }
       guessGrid[row].map((l, i) => {
         const currentInput = inputRef.current[toFlatIndex(row, i)]
         if (l === correctWord[i]) {
@@ -156,6 +167,9 @@ function App() {
       row: number, col: number) => {
     e.preventDefault()
     const flatIdx = toFlatIndex(row, col)
+
+    // Clear any alerts
+    setAlert(null)
  
     // Is this the next allowed input? (in case they clicked around)
     if (earlyReturnEditInvalidInput(flatIdx)) {
@@ -186,6 +200,7 @@ function App() {
       input?.classList.remove('wrong')
       input?.toggleAttribute("readonly", false)
     }
+    setAlert(null)
     setGuessGrid((prev) => prev.map((word) => word.map(() => '')))
     setGameOver(TGameState.IN_PROGRESS)
     setCorrectWord(selectRandomWord(listOfWords))
@@ -202,6 +217,9 @@ function App() {
           gameOver={gameOver}
           correctWord={correctWord}/> : null}
       <div>
+      <div className='alert'>
+        {alert === TAlert.WORD_NOT_IN_LIST ? <p>Word not in list</p> : null}
+      </div>
         <form className="board" onSubmit={(e) => e.preventDefault()}>
           {guessGrid.map((word, i) => (
             <div className="row" key={i}>
@@ -213,7 +231,7 @@ function App() {
                   ref={(ref) => inputRef.current[toFlatIndex(i, j)] = ref}
                   maxLength={1}
                   autoFocus={i === 0 && j === 0}
-                  pattern='[a-zA-Z]{1}'
+                  pattern="[a-zA-Z]{1}"
                   onChange={(e) => handleInput(e, i, j)}
                   />
                 ))}
