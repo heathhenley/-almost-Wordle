@@ -80,7 +80,3 @@ button {
   flex-direction: column;
   align-items: center;
 }
-
-.gameOver h1 {
-  margin-bottom: 0;
-}

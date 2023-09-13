@@ -148,15 +148,15 @@ function App() {
       return
     }
 
-    // Is this the next allowed input? (in case they clicked around)
-    if (earlyReturnEditInvalidInput(flatIdx)) return
-
     // Check for backspace
     if (e.key === 'Backspace') {
       earlyReturnHandleBackspace(row, col, flatIdx)
       return
     }
  
+    // Is this the next allowed input? (in case they clicked around)
+    if (earlyReturnEditInvalidInput(flatIdx)) return
+
     // Check for unused keys
     if (!e.key.match(LETTERS_REGEX)) return
   
