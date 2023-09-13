@@ -4,6 +4,7 @@ import './App.css'
 const WORDS = 6
 const WORD_LENGTH = 5
 const WORD_LIST_API = 'https://wordle-api.cyclic.app/words'
+const LETTERS_REGEX = /^[a-zA-Z]{1}$/
 
 const toFlatIndex = (row: number, col: number): number => row * WORD_LENGTH + col
 
@@ -13,10 +14,19 @@ const toRowCol = (flat_idx: number): [number, number] => {
   return [row, col]
 }
 
+const selectRandomWord = (words: string[]): string => {
+  return words[Math.floor(Math.random() * words.length)]
+}
+
 enum TGameState {
   WON,
   LOST,
   IN_PROGRESS
+}
+
+interface TAPIWord {
+  word: string
+  id: number
 }
 
 
@@ -26,7 +36,7 @@ const GameOverPanel = (
   if (gameOver === TGameState.WON) {
     return (
       <div className="gameOver">
-        <div className="gameOverText">You Won!</div>
+        <h1 className="gameOverText">You Won!</h1>
       </div>
     )
   }
@@ -39,92 +49,92 @@ const GameOverPanel = (
 }
 
 function App() {
-  const [words, setWords] = useState(
+  const [guessGrid, setGuessGrid] = useState(
     Array<string[]>(WORDS).fill(Array<string>(WORD_LENGTH).fill('')))
+  const [listOfWords, setListOfWords] = useState<string[]>([])
   const [correctWord, setCorrectWord] = useState("")
-  const [nextAllowedIdx, setNextAllowedIdx] = useState(0);
   const [gameOver, setGameOver] = useState<TGameState>(TGameState.IN_PROGRESS)
   const inputRef = useRef<Array<HTMLInputElement | null>>([])
 
+  const firstAvailableIndex = guessGrid.flat().findIndex((l) => l === '')
+  const firstAvailableRow = toRowCol(firstAvailableIndex)[0]
+
   // Fetch from word list api and pick a random word
-  const getNewWord  = async () => {
+  const getWordList = async () => {
     const response = await fetch(WORD_LIST_API)
-    const data = await response.json()
-    const randomWord = data[Math.floor(Math.random() * data.length)]
-    setCorrectWord(randomWord.word)
+    const data = await response.json() as TAPIWord[]
+    setListOfWords(data.map((w) => w.word))
+    setCorrectWord(selectRandomWord(data.map((w) => w.word)))
   }
 
-  // Could use react query here?
-  useEffect(() => {getNewWord()}, [])
+  // TODO: Could/should we use react query here?
+  useEffect(() => {
+    getWordList()
+  }, [])
 
   const earlyReturnEditInvalidInput = (inputIdx: number): boolean => {
-    if (inputIdx > nextAllowedIdx) {
-      const allowedInput = inputRef.current[nextAllowedIdx]
-      if (allowedInput) {
-        allowedInput.focus()
-      }
-      return true
-    }
+    // This is to stop user from editing inputs for already guessed words
+    const clickedInputRow = toRowCol(inputIdx)[0]
+    if (clickedInputRow != firstAvailableRow) return true
     return false
   }
 
-  const earlyReturnHandleBackspace = (row: number, col: number, flatIdx: number): boolean => {
-    const newWords = words.map((word) =>(word.slice()))
-    // if we're not at the start of the word
-    if (col === 0) return true
+  const earlyReturnHandleBackspace = (row: number, col: number, flatIdx: number)=> {
+    const atStartOfWord: boolean = col === 0
+    const atEndOfWord: boolean = col === WORD_LENGTH - 1
+    console.log("Handle backspace", atStartOfWord, atEndOfWord)
+    // nothing to backspace at the start of the word
+    if (atStartOfWord) return
 
     // if we're at the end of the word and there is a letter
-    if (col === WORD_LENGTH - 1 && words[row][col] !== ''){
+    if (atEndOfWord && guessGrid[row][col] !== ''){
+      const newGrid = guessGrid.map((word) =>(word.slice()))
       // clear that value in words array, focus stays here
-      newWords[row][col] = ''
-      setWords(newWords)
-      return true
+      newGrid[row][col] = ''
+      setGuessGrid(newGrid)
+      return
     }
     
     // move focus back one input
     const [prevRow, prevCol] = toRowCol(flatIdx - 1)
-    const prevInput = inputRef.current[flatIdx - 1]
-    if (prevInput) {
-      prevInput.focus()
-      prevInput.value = ''
-    }
+    inputRef?.current[flatIdx - 1]?.focus()
     // clear that value in words array
-    newWords[prevRow][prevCol] = ''
-    setWords(newWords)
-    return true
+    const newGrid = guessGrid.map((word) =>(word.slice()))
+    newGrid[prevRow][prevCol] = ''
+    setGuessGrid(newGrid)
   }
 
-  const earlyReturnHandleEnter = (row: number, col: number, flatIdx: number): boolean => {
-    const newWords = words.map((word) =>(word.slice()))
-    const completeWord: boolean = col === WORD_LENGTH - 1
+  const earlyReturnHandleEnter = (row: number, col: number, flatIdx: number) => {
+    const completeWordEntered: boolean = col === WORD_LENGTH - 1
+    const enteredWordIsCorrect: boolean = guessGrid[row].join('') === correctWord
+    const allGuessesUsed: boolean = flatIdx === WORDS * WORD_LENGTH - 1
     // We need to check for game stuff here
-    // - Check if the word is complete
-    if (completeWord) {
-      newWords[row].map((l, i) => {
+    // - Check if the word is complete and add classes to color if it is
+    console.log(correctWord)
+    if (completeWordEntered) {
+      guessGrid[row].map((l, i) => {
         const currentInput = inputRef.current[toFlatIndex(row, i)]
         if (l === correctWord[i]) {
           // correct letter in the correct spot
           currentInput?.classList.add('correct')
-        } else if ( correctWord.includes(l)) {
+        } else if (correctWord.includes(l)) {
           // letter is in the word but in the wrong spot
           currentInput?.classList.add('almost')
         }
       })
     }
-    const isCorrect: boolean = newWords[row].join('') === correctWord
-    if (completeWord && isCorrect) {
+    if (completeWordEntered && enteredWordIsCorrect) {
       setGameOver(TGameState.WON)
-      return true
+      return
     }
-    if (flatIdx === WORD_LENGTH * WORDS - 1) {
+    if (allGuessesUsed) {
       setGameOver(TGameState.LOST)
-      return true
+      return 
     }
     // don't move to the next input if the word isn't complete
-    if (!completeWord)
-      return true
+    if (!completeWordEntered)
+      return
     inputRef?.current[flatIdx + 1]?.focus()
-    return true
   }
 
   const handleInput = (e: React.KeyboardEvent<HTMLInputElement>,
@@ -132,32 +142,34 @@ function App() {
     e.preventDefault()
     const flatIdx = toFlatIndex(row, col)
 
+    // Check for enter
+    if (e.key === 'Enter') {
+      earlyReturnHandleEnter(row, col, flatIdx)
+      return
+    }
+
     // Is this the next allowed input? (in case they clicked around)
     if (earlyReturnEditInvalidInput(flatIdx)) return
 
     // Check for backspace
     if (e.key === 'Backspace') {
-      if (earlyReturnHandleBackspace(row, col, flatIdx)) return
-    }
-
-    // Check for enter
-    if (e.key === 'Enter') {
-      if (earlyReturnHandleEnter(row, col, flatIdx)) return
+      earlyReturnHandleBackspace(row, col, flatIdx)
+      return
     }
  
     // Check for unused keys
-    if (!e.key.match(/[a-zA-Z]/)) return
+    if (!e.key.match(LETTERS_REGEX)) return
   
     // If we're here, we have a letter...
-    //We want to update the the state and move focus to the next input
-    const newWords = words.map((word) =>(word.slice()))
-    newWords[row][col] = e.key.toLowerCase() 
-    setWords(newWords);
-    setNextAllowedIdx(flatIdx + 1)
+    // We want to update the the state and move focus to the next input
+    const newGrid = guessGrid.map((word) =>(word.slice()))
+    newGrid[row][col] = e.key.toLowerCase() 
+    setGuessGrid(newGrid);
 
-    // Move to the next input (skip if we're at the end, eg waiting for
-    // the user to hit enter)
-    if (col === WORD_LENGTH - 1) return
+    // Move to the next input, but skip if we're at the end of the word, waiting
+    // for the user to hit enter
+    const wordCompletedButNotEntered = col === WORD_LENGTH - 1
+    if (wordCompletedButNotEntered) return
     inputRef?.current[flatIdx + 1]?.focus()
   }
 
@@ -167,14 +179,12 @@ function App() {
       input?.classList.remove('almost')
       input?.classList.remove('wrong')
     }
-    setWords((prev) => prev.map((word) => word.map(() => '')))
-    console.log(words)
-    setNextAllowedIdx(0)
+    setGuessGrid((prev) => prev.map((word) => word.map(() => '')))
     setGameOver(TGameState.IN_PROGRESS)
-    getNewWord()
+    setCorrectWord(selectRandomWord(listOfWords))
   }
 
-  if (correctWord === '') {
+  if (!correctWord) {
     return <div>Loading...</div>
   }
 
@@ -185,7 +195,7 @@ function App() {
           gameOver={gameOver}
           correctWord={correctWord}/> : null}
       <div className="board">
-        {words.map((word, i) => (
+        {guessGrid.map((word, i) => (
           <div className="row" key={i}>
             {word.map((l, j) => (
               <input key={`${i}-${j}`}
@@ -196,6 +206,7 @@ function App() {
                 maxLength={1}
                 autoFocus={i === 0 && j === 0}
                 pattern='[a-zA-Z]'
+                onChange={(e) => (console.log(e.target.value))}
                 />))}
           </div>))}
       </div>

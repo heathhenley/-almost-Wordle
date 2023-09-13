@@ -70,4 +70,17 @@ button {
     font-size: large;
     text-align: center;
   }
+  .gameOver {
+    font-size: small;
+  }
+}
+
+.gameOver {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gameOver h1 {
+  margin-bottom: 0;
 }
