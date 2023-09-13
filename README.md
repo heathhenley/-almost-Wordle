@@ -10,9 +10,8 @@ external api - which should be swapped for package like react-query at
 some point).
 
 TODO
-- Should it use onChange instead of of onKeyUp and just use onKeyUp for enter,
-and backspace?
-- Should it use an actual form and onSubmit instead of listening for enter?
+- Should use form onSubmit instead of handling enter keypress? It should do the
+same logic that's in the handle enter part
 - Wordle actual logic does some handling of duplicate letters, etc, that I have
 not thought about
 - Real wordle also only lets you guess real words, which is a big part of the

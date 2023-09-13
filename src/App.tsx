@@ -121,6 +121,7 @@ function App() {
           // letter is in the word but in the wrong spot
           currentInput?.classList.add('almost')
         }
+        currentInput?.toggleAttribute("readonly", true)
       })
     }
     if (completeWordEntered && enteredWordIsCorrect) {
@@ -137,33 +138,38 @@ function App() {
     inputRef?.current[flatIdx + 1]?.focus()
   }
 
-  const handleInput = (e: React.KeyboardEvent<HTMLInputElement>,
+  const handleBackspaceOrEnter = (e: React.KeyboardEvent<HTMLInputElement>,
       row: number, col: number) => {
     e.preventDefault()
     const flatIdx = toFlatIndex(row, col)
-
-    // Check for enter
     if (e.key === 'Enter') {
       earlyReturnHandleEnter(row, col, flatIdx)
       return
     }
-
-    // Check for backspace
     if (e.key === 'Backspace') {
       earlyReturnHandleBackspace(row, col, flatIdx)
       return
     }
+  }
+
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>,
+      row: number, col: number) => {
+    e.preventDefault()
+    const flatIdx = toFlatIndex(row, col)
  
     // Is this the next allowed input? (in case they clicked around)
-    if (earlyReturnEditInvalidInput(flatIdx)) return
+    if (earlyReturnEditInvalidInput(flatIdx)) {
+      return
+    }
 
-    // Check for unused keys
-    if (!e.key.match(LETTERS_REGEX)) return
+    // Check for unused keys (numbers, etc)
+    const letter = e.target.value.toLowerCase()
+    if (!letter.match(LETTERS_REGEX)) return
   
     // If we're here, we have a letter...
     // We want to update the the state and move focus to the next input
     const newGrid = guessGrid.map((word) =>(word.slice()))
-    newGrid[row][col] = e.key.toLowerCase() 
+    newGrid[row][col] = letter.toLowerCase() 
     setGuessGrid(newGrid);
 
     // Move to the next input, but skip if we're at the end of the word, waiting
@@ -178,6 +184,7 @@ function App() {
       input?.classList.remove('correct')
       input?.classList.remove('almost')
       input?.classList.remove('wrong')
+      input?.toggleAttribute("readonly", false)
     }
     setGuessGrid((prev) => prev.map((word) => word.map(() => '')))
     setGameOver(TGameState.IN_PROGRESS)
@@ -194,21 +201,24 @@ function App() {
         <GameOverPanel
           gameOver={gameOver}
           correctWord={correctWord}/> : null}
-      <div className="board">
-        {guessGrid.map((word, i) => (
-          <div className="row" key={i}>
-            {word.map((l, j) => (
-              <input key={`${i}-${j}`}
-                onKeyUp={(e) => handleInput(e, i, j)}
-                type="text"
-                value={l}
-                ref={(ref) => inputRef.current[toFlatIndex(i, j)] = ref}
-                maxLength={1}
-                autoFocus={i === 0 && j === 0}
-                pattern='[a-zA-Z]'
-                onChange={(e) => (console.log(e.target.value))}
-                />))}
-          </div>))}
+      <div>
+        <form className="board" onSubmit={(e) => e.preventDefault()}>
+          {guessGrid.map((word, i) => (
+            <div className="row" key={i}>
+              {word.map((l, j) => (
+                <input key={`${i}-${j}`}
+                  onKeyUp={(e) => handleBackspaceOrEnter(e, i, j)}
+                  type="text"
+                  value={l}
+                  ref={(ref) => inputRef.current[toFlatIndex(i, j)] = ref}
+                  maxLength={1}
+                  autoFocus={i === 0 && j === 0}
+                  pattern='[a-zA-Z]{1}'
+                  onChange={(e) => handleInput(e, i, j)}
+                  />
+                ))}
+            </div>))}
+        </form>
       </div>
       <div className="resetButton">
         <button onClick={handleReset}>reset</button>
