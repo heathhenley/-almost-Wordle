@@ -84,8 +84,8 @@ function App() {
   }
 
   const earlyReturnHandleBackspace = (row: number, col: number, flatIdx: number)=> {
-    const atStartOfWord: boolean = col === 0
-    const atEndOfWord: boolean = col === WORD_LENGTH - 1
+    const atStartOfWord = col === 0
+    const atEndOfWord = col === WORD_LENGTH - 1
     console.log("Handle backspace", atStartOfWord, atEndOfWord)
     // nothing to backspace at the start of the word
     if (atStartOfWord) return
@@ -109,10 +109,10 @@ function App() {
   }
 
   const earlyReturnHandleEnter = (row: number, col: number, flatIdx: number) => {
-    const completeWordEntered: boolean = col === WORD_LENGTH - 1
-    const enteredWordIsCorrect: boolean = guessGrid[row].join('') === correctWord
-    const allGuessesUsed: boolean = flatIdx === WORDS * WORD_LENGTH - 1
-    const wordInWordList: boolean = listOfWords.includes(
+    const completeWordEntered = col === WORD_LENGTH - 1
+    const enteredWordIsCorrect = guessGrid[row].join('') === correctWord
+    const allGuessesUsed = flatIdx === WORDS * WORD_LENGTH - 1
+    const wordInWordList = listOfWords.includes(
       guessGrid[row].join(''))
     // We need to check for game stuff here
     // - Check if the word is complete and add classes to color if it is
