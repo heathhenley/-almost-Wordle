@@ -3,7 +3,8 @@ import './App.css'
 
 const WORDS = 6
 const WORD_LENGTH = 5
-const WORD_LIST_API = 'https://wordle-api.cyclic.app/words'
+const WORDLE_LIST_API = 'https://wordle-api.cyclic.app/words'
+const ALL_WORDS_API = 'https://api.dictionaryapi.dev/api/v2/entries/en/'
 const LETTERS_REGEX = /^[a-zA-Z]{1}$/
 
 const toFlatIndex = (row: number, col: number): number => row * WORD_LENGTH + col
@@ -28,9 +29,15 @@ enum TAlert {
   WORD_NOT_IN_LIST,
 }
 
-interface TAPIWord {
+interface TAPIResponseWordle {
   word: string
   id: number
+}
+
+interface TAPIResponseAllWords {
+  title?: string
+  message?: string
+  word?: string
 }
 
 
@@ -51,26 +58,62 @@ const GameOverPanel = (
     </div>
   )
 }
+const getValidWord = async (word: string): Promise<TAPIResponseAllWords> => {
+  const result = await fetch(
+    `${ALL_WORDS_API}${word}`)
+  const json = await result.json();
+  return json
+}
+
+const checkValidWordBasedOnApiResponse =
+    (json: TAPIResponseAllWords): boolean => {
+  console.log(json)
+  if (json.title && json.title === 'No Definitions Found') {
+    return false
+  }
+  return true
+}
+
+
+interface TGameData {
+  gameOver: TGameState
+  correctWord: string
+  listOfWords: string[]
+  guessGrid: string[][]
+  lastRowEntered: number | null
+  alert: TAlert | null
+}
 
 function App() {
-  const [guessGrid, setGuessGrid] = useState(
+  const [gameData, setGameData] = useState<TGameData>({
+    gameOver: TGameState.IN_PROGRESS,
+    correctWord: "",
+    listOfWords: [],
+    guessGrid: Array<string[]>(WORDS).fill(Array<string>(WORD_LENGTH).fill('')),
+    lastRowEntered: null,
+    alert: null,
+  })
+  /*const [guessGrid, setGuessGrid] = useState(
     Array<string[]>(WORDS).fill(Array<string>(WORD_LENGTH).fill('')))
   const [lastRowEntered, setLastRowEntered] = useState<number | null>(null)
   const [listOfWords, setListOfWords] = useState<string[]>([])
   const [correctWord, setCorrectWord] = useState("")
   const [gameOver, setGameOver] = useState<TGameState>(TGameState.IN_PROGRESS)
-  const [alert, setAlert] = useState<TAlert | null>(null)
+  const [alert, setAlert] = useState<TAlert | null>(null)*/
   const inputRef = useRef<Array<HTMLInputElement | null>>([])
 
-  const firstAvailableIndex = guessGrid.flat().findIndex((l) => l === '')
+  const firstAvailableIndex = gameData.guessGrid.flat().findIndex(
+    (l) => l === '')
   const firstAvailableRow = toRowCol(firstAvailableIndex)[0]
 
   // Fetch from word list api and pick a random word
   const getWordList = async () => {
-    const response = await fetch(WORD_LIST_API)
-    const data = await response.json() as TAPIWord[]
-    setListOfWords(data.map((w) => w.word))
-    setCorrectWord(selectRandomWord(data.map((w) => w.word)))
+    const response = await fetch(WORDLE_LIST_API)
+    const data = await response.json() as TAPIResponseWordle[]
+    setGameData((prev) => ({...prev,
+      listOfWords: data.map((w) => w.word),
+      correctWord: selectRandomWord(data.map((w) => w.word))
+    }))
   }
 
   // TODO: Could/should use react query here? Also not adding any
@@ -91,61 +134,63 @@ function App() {
 
     // End cases, if we're at the at the start or end of a word, clear that
     // value in words array, focus stays there 
-    if (atStartOfWord || (atEndOfWord && guessGrid[row][col] !== '')) {
-      const newGrid = guessGrid.map((word) =>(word.slice()))
+    if (atStartOfWord || (atEndOfWord && gameData.guessGrid[row][col] !== '')) {
+      const newGrid = gameData.guessGrid.map((word) =>(word.slice()))
       // clear that value in words array, focus stays here
       newGrid[row][col] = ''
-      setGuessGrid(newGrid)
+      setGameData((prev) => ({...prev, guessGrid: newGrid}))
       return
     }
-    if (guessGrid[row][col] !== '') {
+    if (gameData.guessGrid[row][col] !== '') {
       // if we have a letter here, clear it, don't move focus
-      const newGrid = guessGrid.map((word) =>(word.slice()))
+      const newGrid = gameData.guessGrid.map((word) =>(word.slice()))
       // clear that value in words array
       newGrid[row][col] = ''
-      setGuessGrid(newGrid)
+      setGameData((prev) => ({...prev, guessGrid: newGrid}))
     } else {
       // if we don't have a letter here, move focus back one input, clear that
       // letter
       const [prevRow, prevCol] = toRowCol(flatIdx - 1)
-      const newGrid = guessGrid.map((word) =>(word.slice()))
+      const newGrid = gameData.guessGrid.map((word) =>(word.slice()))
       newGrid[prevRow][prevCol] = ''
-      setGuessGrid(newGrid)
+      setGameData((prev) => ({...prev, guessGrid: newGrid}))
       inputRef?.current[flatIdx - 1]?.focus()
     }
   }
 
-  const earlyReturnHandleEnter = (row: number, flatIdx: number) => {
-    const completeWordEntered = guessGrid[row].join('').length === WORD_LENGTH
-    const enteredWordIsCorrect = guessGrid[row].join('') === correctWord
+  const earlyReturnHandleEnter = async (row: number, flatIdx: number) => {
+    const completeWordEntered =
+      gameData.guessGrid[row].join('').length === WORD_LENGTH
+    const enteredWordIsCorrect =
+      gameData.guessGrid[row].join('') === gameData.correctWord
     const allGuessesUsed = flatIdx === WORDS * WORD_LENGTH - 1
-    const wordInWordList = listOfWords.includes(guessGrid[row].join(''))
     // We need to check for game stuff here
     // - Check if the word is complete and add classes to color if it is
     if (completeWordEntered) {
-      if (!wordInWordList) {
-        setAlert(TAlert.WORD_NOT_IN_LIST)
+      const api_result = await getValidWord(gameData.guessGrid[row].join('')) 
+      if (!checkValidWordBasedOnApiResponse(api_result)) {
+        setGameData((prev) => ({...prev, alert: TAlert.WORD_NOT_IN_LIST}))
         return
       }
-      guessGrid[row].map((l, i) => {
+      gameData.guessGrid[row].map((l, i) => {
         const currentInput = inputRef.current[toFlatIndex(row, i)]
-        if (l === correctWord[i]) {
+        if (l === gameData.correctWord[i]) {
           // correct letter in the correct spot
           currentInput?.classList.add('correct')
-        } else if (correctWord.includes(l)) {
+        } else if (gameData.correctWord.includes(l)) {
           // letter is in the word but in the wrong spot
           currentInput?.classList.add('almost')
         }
         currentInput?.toggleAttribute("readonly", true)
       })
-      setLastRowEntered(row)
+      setGameData((prev) => ({...prev, lastRowEntered: row}))
     }
     if (completeWordEntered && enteredWordIsCorrect) {
-      setGameOver(TGameState.WON)
+      setGameData((prev) => ({...prev, gameOver: TGameState.WON}))
       return
     }
     if (allGuessesUsed) {
-      setGameOver(TGameState.LOST)
+      setGameData((prev) => ({...prev, gameOver: TGameState.LOST}))
       return 
     }
     // don't move to the next input if the word isn't complete
@@ -178,7 +223,7 @@ function App() {
     const flatIdx = toFlatIndex(row, col)
 
     // Clear any alerts
-    setAlert(null)
+    setGameData((prev) => ({...prev, alert: null}))
  
     // Is this the next allowed input? (in case they clicked around)
     if (earlyReturnEditInvalidInput(flatIdx)) {
@@ -191,9 +236,9 @@ function App() {
   
     // If we're here, we have a letter...
     // We want to update the the state and move focus to the next input
-    const newGrid = guessGrid.map((word) =>(word.slice()))
+    const newGrid = gameData.guessGrid.map((word) =>(word.slice()))
     newGrid[row][col] = letter.toLowerCase() 
-    setGuessGrid(newGrid);
+    setGameData((prev) => ({...prev, guessGrid: newGrid}))
 
     // Move to the next input, but skip if we're at the end of the word, waiting
     // for the user to hit enter
@@ -203,7 +248,8 @@ function App() {
   }
 
   const handleInputClicked = (row: number) => {
-    const validEditableRow = lastRowEntered !== null ? lastRowEntered + 1 : 0
+    const validEditableRow =
+      gameData.lastRowEntered !== null ? gameData.lastRowEntered + 1 : 0
     // If the user clicks on a row that is not the next editable row, move back
     // to the last editable row, arbitrarily the first letter
     if (row !== validEditableRow) {
@@ -218,29 +264,31 @@ function App() {
       input?.classList.remove('wrong')
       input?.toggleAttribute("readonly", false)
     }
-    setAlert(null)
-    setGuessGrid((prev) => prev.map((word) => word.map(() => '')))
-    setGameOver(TGameState.IN_PROGRESS)
-    setCorrectWord(selectRandomWord(listOfWords))
-    setLastRowEntered(null)
+    setGameData((prev) => ({...prev,
+      guessGrid: prev.guessGrid.map((word) => word.map(() => '')),
+      lastRowEntered: null,
+      alert: null,
+      gameOver: TGameState.IN_PROGRESS,
+      correctWord: selectRandomWord(prev.listOfWords)
+    }))
   }
 
-  if (!correctWord) {
+  if (!gameData.correctWord) {
     return <div>Loading...</div>
   }
 
   return (
     <div>
-      {gameOver !== TGameState.IN_PROGRESS ?
+      {gameData.gameOver !== TGameState.IN_PROGRESS ?
         <GameOverPanel
-          gameOver={gameOver}
-          correctWord={correctWord}/> : null}
+          gameOver={gameData.gameOver}
+          correctWord={gameData.correctWord}/> : null}
       <div>
       <div className='alert'>
-        {alert === TAlert.WORD_NOT_IN_LIST ? <p>Word not in list</p> : null}
+        {gameData.alert === TAlert.WORD_NOT_IN_LIST ? <p>Word not found!</p> : null}
       </div>
         <form className="board" onSubmit={(e) => e.preventDefault()}>
-          {guessGrid.map((word, i) => (
+          {gameData.guessGrid.map((word, i) => (
             <div className="row" key={i}>
               {word.map((l, j) => (
                 <input key={`${i}-${j}`}
