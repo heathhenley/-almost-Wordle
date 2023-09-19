@@ -7,18 +7,6 @@ const WORDLE_LIST_API = 'https://wordle-api.cyclic.app/words'
 const ALL_WORDS_API = 'https://api.dictionaryapi.dev/api/v2/entries/en/'
 const LETTERS_REGEX = /^[a-zA-Z]{1}$/
 
-const toFlatIndex = (row: number, col: number): number => row * WORD_LENGTH + col
-
-const toRowCol = (flat_idx: number): [number, number] => {
-  const row = Math.floor(flat_idx / WORD_LENGTH)
-  const col = flat_idx % WORD_LENGTH
-  return [row, col]
-}
-
-const selectRandomWord = (words: string[]): string => {
-  return words[Math.floor(Math.random() * words.length)]
-}
-
 enum TGameState {
   WON,
   LOST,
@@ -40,6 +28,42 @@ interface TAPIResponseAllWords {
   word?: string
 }
 
+interface TGameData {
+  gameOver: TGameState
+  correctWord: string
+  listOfWords: string[]
+  guessGrid: string[][]
+  lastRowEntered: number | null
+  alert: TAlert | null
+}
+
+const toFlatIndex = (row: number, col: number): number => row * WORD_LENGTH + col
+
+const toRowCol = (flat_idx: number): [number, number] => {
+  const row = Math.floor(flat_idx / WORD_LENGTH)
+  const col = flat_idx % WORD_LENGTH
+  return [row, col]
+}
+
+const selectRandomWord = (words: string[]): string => {
+  return words[Math.floor(Math.random() * words.length)]
+}
+
+const getValidWord = async (word: string): Promise<TAPIResponseAllWords> => {
+  const result = await fetch(
+    `${ALL_WORDS_API}${word}`)
+  const json = await result.json();
+  return json
+}
+
+const checkValidWordBasedOnApiResponse =
+    (json: TAPIResponseAllWords): boolean => {
+  console.log(json)
+  if (json.title && json.title === 'No Definitions Found') {
+    return false
+  }
+  return true
+}
 
 const GameOverPanel = (
   {gameOver, correctWord}: {gameOver: TGameState, correctWord: string}) => {
@@ -58,33 +82,8 @@ const GameOverPanel = (
     </div>
   )
 }
-const getValidWord = async (word: string): Promise<TAPIResponseAllWords> => {
-  const result = await fetch(
-    `${ALL_WORDS_API}${word}`)
-  const json = await result.json();
-  return json
-}
 
-const checkValidWordBasedOnApiResponse =
-    (json: TAPIResponseAllWords): boolean => {
-  console.log(json)
-  if (json.title && json.title === 'No Definitions Found') {
-    return false
-  }
-  return true
-}
-
-
-interface TGameData {
-  gameOver: TGameState
-  correctWord: string
-  listOfWords: string[]
-  guessGrid: string[][]
-  lastRowEntered: number | null
-  alert: TAlert | null
-}
-
-function App() {
+const App = () => {
   const [gameData, setGameData] = useState<TGameData>({
     gameOver: TGameState.IN_PROGRESS,
     correctWord: "",
@@ -93,13 +92,6 @@ function App() {
     lastRowEntered: null,
     alert: null,
   })
-  /*const [guessGrid, setGuessGrid] = useState(
-    Array<string[]>(WORDS).fill(Array<string>(WORD_LENGTH).fill('')))
-  const [lastRowEntered, setLastRowEntered] = useState<number | null>(null)
-  const [listOfWords, setListOfWords] = useState<string[]>([])
-  const [correctWord, setCorrectWord] = useState("")
-  const [gameOver, setGameOver] = useState<TGameState>(TGameState.IN_PROGRESS)
-  const [alert, setAlert] = useState<TAlert | null>(null)*/
   const inputRef = useRef<Array<HTMLInputElement | null>>([])
 
   const firstAvailableIndex = gameData.guessGrid.flat().findIndex(
