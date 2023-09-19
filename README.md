@@ -10,13 +10,8 @@ external api - which should be swapped for package like react-query at
 some point).
 
 TODO
-- Should use form onSubmit instead of handling enter keypress? It should do the
+- Should it use form onSubmit instead of handling enter keypress? It should do the
 same logic that's in the handle enter part already...
 - Wordle actual logic does some handling of duplicate letters, etc, that I have
 not thought about (I don't actually play it much so I would have to look into
 it)
-- Real wordle lets you use any word, as long as it's valid, even if it's not in
-list of possible solutions, so we would need two lists of words, one for the
-possible solutions, and one for the words that are valid but not in the list of
-solutions - I don't think I want to implement this, but would be pretty
-straightforward to do.
