@@ -192,6 +192,16 @@ function App() {
     inputRef?.current[flatIdx + 1]?.focus()
   }
 
+  const handleInputFocused = (row: number, col: number) => {
+    const flatIdx = toFlatIndex(row, col)
+    // Are they trying to focus an input that's not allowed?
+    if (earlyReturnEditInvalidInput(flatIdx)) {
+      // Move focus to next valid input
+      inputRef?.current[firstAvailableIndex]?.focus()
+      return
+    }
+  }
+
   const handleReset = () => {
     for (const input of inputRef.current) {
       input?.classList.remove('correct')
@@ -230,8 +240,8 @@ function App() {
                   ref={(ref) => inputRef.current[toFlatIndex(i, j)] = ref}
                   maxLength={1}
                   autoFocus={i === 0 && j === 0}
-                  pattern="[a-zA-Z]{1}"
                   onChange={(e) => handleInputChanged(e, i, j)}
+                  onFocus={() => handleInputFocused(i, j)}
                   />
                 ))}
             </div>))}
