@@ -162,7 +162,7 @@ function App() {
     }
   }
 
-  const handleInput = (e: React.ChangeEvent<HTMLInputElement>,
+  const handleInputChanged = (e: React.ChangeEvent<HTMLInputElement>,
       row: number, col: number) => {
     e.preventDefault()
     const flatIdx = toFlatIndex(row, col)
@@ -231,7 +231,7 @@ function App() {
                   maxLength={1}
                   autoFocus={i === 0 && j === 0}
                   pattern="[a-zA-Z]{1}"
-                  onChange={(e) => handleInput(e, i, j)}
+                  onChange={(e) => handleInputChanged(e, i, j)}
                   />
                 ))}
             </div>))}
